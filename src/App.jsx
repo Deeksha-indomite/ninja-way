@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
+import{supabase}from'./supabase'
 const DEFAULT_TASKS = [
   { id:1, time:"6:00 AM",         task:"Wake Up",            icon:"🌅", xp:10, chakra:5,  category:"morning"  },
   { id:2, time:"6:15 AM",         task:"Revision Training",  icon:"📖", xp:20, chakra:15, category:"study"    },
@@ -173,6 +173,27 @@ function StatsPanel({stats,history}){
 }
 
 export default function App(){
+  const [user, setUser] = useState(null);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null);
+  });
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+}, []);
+
+async function signInWithGoogle() {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: 'https://ninja-way.vercel.app' }
+  });
+}
+
+async function signOut() {
+  await supabase.auth.signOut();
+}
   const now=useLiveTime();
   const[tab,setTab]=useState("missions");
   const[tasks,setTasks]=useState([]);
@@ -322,7 +343,30 @@ export default function App(){
 
       <div style={{padding:"18px 14px 0",maxWidth:460,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:14}}>
-          <motion.div animate={{opacity:[.7,1,.7]}} transition={{repeat:Infinity,duration:3}} style={{fontSize:8,letterSpacing:4,color:"#6b5a3e",marginBottom:5}}>⬥ HIDDEN LEAF VILLAGE ⬥</motion.div>
+          <motion.div animate={{opacity:[.7,1,.7]}} transition={{repeat:Infinity,duration:3}} style={{fontSize:8,letterSpacing:4,color:"#6b5a3e",marginBottom:5}}>{!user ? (
+  <motion.button onClick={signInWithGoogle}
+    whileHover={{scale:1.05}} whileTap={{scale:.95}}
+    style={{width:"100%",padding:"10px",marginBottom:12,borderRadius:10,
+      background:"linear-gradient(135deg,#f97316,#ef4444)",border:"none",
+      color:"#fff",fontFamily:"'Cinzel',serif",fontWeight:700,fontSize:12,
+      cursor:"pointer",boxShadow:"0 0 14px #f9731677"}}>
+    🔑 Sign in with Google to Save Progress
+  </motion.button>
+) : (
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+    marginBottom:12,padding:"8px 12px",borderRadius:10,
+    background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,200,100,.07)"}}>
+    <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"#f59e0b"}}>
+      👤 {user.email}
+    </span>
+    <motion.button onClick={signOut} whileTap={{scale:.95}}
+      style={{padding:"4px 10px",borderRadius:6,background:"transparent",
+        border:"1px solid #ef4444",color:"#ef4444",fontFamily:"'Cinzel',serif",
+        fontSize:9,cursor:"pointer"}}>
+      Sign Out
+    </motion.button>
+  </div>
+)}⬥ HIDDEN LEAF VILLAGE ⬥</motion.div>
           <div style={{fontFamily:"'Cinzel',serif",fontWeight:900,fontSize:20,background:"linear-gradient(135deg,#f59e0b,#f97316,#ef4444)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:2,lineHeight:1}}>NINJA WAY</div>
           <div style={{fontSize:8,color:"#4b5563",letterSpacing:3,marginTop:2}}>DAILY MISSION TRACKER</div>
         </div>
