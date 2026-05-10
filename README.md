@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+ HEAD
 checkout the app by clicking
 https://ninja-way.vercel.app/
 
