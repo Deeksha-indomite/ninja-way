@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useNavigate }from "react-router-dom";
 import About from "./about";
 import Contact from "./Contact";
 import { motion, AnimatePresence } from "framer-motion";
@@ -176,6 +177,7 @@ function StatsPanel({stats,history}){
 }
 
 export default function App(){
+  const navigate =useNavigate();
   const [user, setUser] = useState(null);
 
 useEffect(() => {
@@ -333,7 +335,7 @@ async function signOut() {
   const nextRank=RANKS[rank.index+1];
   const maxXp=nextRank?nextRank.min:RANKS[RANKS.length-1].min;
   const donePct=tasks.length?Math.round((tasks.filter(t=>t.done).length/tasks.length)*100):0;
-  const TABS=[{id:"missions",icon:"🗡️",label:"MISSIONS"},{id:"battle",icon:"⚔️",label:"BATTLE"},{id:"exam",icon:"📋",label:"STUDY"},{id:"stats",icon:"📊",label:"STATS"}];
+  const TABS=[{id:"missions",icon:"🗡️",label:"MISSIONS"},{id:"battle",icon:"⚔️",label:"BATTLE"},{id:"exam",icon:"📋",label:"STUDY"},{id:"stats",icon:"📊",label:"STATS"},{id:"about",icon:"🐦‍🔥",label:"ABOUT"}];
 
   if(!loaded)return(<div style={{minHeight:"100vh",background:"#0d0500",display:"flex",alignItems:"center",justifyContent:"center"}}><motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:1,ease:"linear"}} style={{fontSize:48}}>🌀</motion.div></div>);
 
@@ -418,7 +420,7 @@ async function signOut() {
       <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(13,5,0,.96)",borderTop:"1px solid rgba(255,200,100,.1)",backdropFilter:"blur(12px)",zIndex:1000,padding:"7px 0 8px"}}>
         <div style={{display:"flex",maxWidth:460,margin:"0 auto"}}>
           {TABS.map(t=>(
-            <motion.button key={t.id} onClick={()=>setTab(t.id)} whileTap={{scale:.9}} style={{flex:1,padding:"7px 4px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,outline:"none"}}>
+            <motion.button key={t.id} onClick={()=>t.id==="about"?navigate("/about"):setTab(t.id)} whileTap={{scale:.9}} style={{flex:1,padding:"7px 4px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,outline:"none"}}>
               <motion.div animate={tab===t.id?{scale:[1,1.2,1]}:{}} transition={{duration:.3}} style={{fontSize:19,filter:tab===t.id?"drop-shadow(0 0 8px #f59e0b)":"none"}}>{t.icon}</motion.div>
               <span style={{fontFamily:"'Cinzel',serif",fontSize:7,fontWeight:700,letterSpacing:1.5,color:tab===t.id?"#f59e0b":"#3d2e1a",transition:"color .2s"}}>{t.label}</span>
               {tab===t.id&&<motion.div layoutId="tab-ind" style={{width:18,height:2,borderRadius:1,background:"#f59e0b",boxShadow:"0 0 8px #f59e0b"}}/>}
