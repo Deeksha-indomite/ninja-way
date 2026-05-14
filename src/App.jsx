@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import About from "./about";
+import Contact from "./Contact";
 import { motion, AnimatePresence } from "framer-motion";
 import{supabase}from'./supabase'
 const DEFAULT_TASKS = [
