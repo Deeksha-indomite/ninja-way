@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function About() {
+  const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function About() {
         transform: visible ? "translateY(0)" : "translateY(30px)",
         transition: "all 0.8s ease"
       }}>
+        <button onClick={()=>navigate("/")} style={{background:"transparent",border:"1px solid rgba(224,123,32,0.3)",color:"#e07b20",padding:"8px 16px",borderRadius:8,cursor:"pointer",fontSize:12,letterSpacing:2,fontFamily:"'Cinzel',serif",marginBottom:24}}>← BACK TO APP</button>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <div style={{

@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useNavigate }from "react-router-dom";
-import About from "./about";
-import Contact from "./Contact";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import{supabase}from'./supabase'
+import { useAuth } from "./hooks";
+import { readLocal, writeLocal, fetchCloud, pushCloud, isEmptyProgress } from "./lib/progressStore";
+import { RANKS, getRank } from "./lib/ranks";
 const DEFAULT_TASKS = [
   { id:1, time:"6:00 AM",         task:"Wake Up",            icon:"🌅", xp:10, chakra:5,  category:"morning"  },
   { id:2, time:"6:15 AM",         task:"Revision Training",  icon:"📖", xp:20, chakra:15, category:"study"    },
@@ -14,7 +13,6 @@ const DEFAULT_TASKS = [
   { id:6, time:"9:00 PM",         task:"Scroll Study",       icon:"📝", xp:20, chakra:10, category:"study"    },
   { id:7, time:"10:00 PM",        task:"Meditate & Reflect", icon:"🌙", xp:15, chakra:10, category:"evening"  },
 ];
-const RANKS=[{name:"Academy Student",min:0,color:"#9ca3af",badge:"📜",title:"Novice Shinobi"},{name:"Genin",min:50,color:"#10b981",badge:"🟢",title:"Rookie Ninja"},{name:"Chunin",min:100,color:"#3b82f6",badge:"🔵",title:"Mid-Level Ninja"},{name:"Jonin",min:150,color:"#8b5cf6",badge:"💜",title:"Elite Ninja"},{name:"ANBU",min:175,color:"#f59e0b",badge:"🟡",title:"Shadow Operative"},{name:"Hokage",min:220,color:"#ef4444",badge:"🔴",title:"Village Leader"}];
 const VILLAINS=[{name:"Orochimaru",title:"Sannin of Shadows",maxHp:120,img:"🐍",color:"#8b5cf6",minXp:0,reward:50,quote:"Power is the only truth in this world.",moves:["🌫️ Poison Mist","🐍 Snake Bind","💀 Death Jutsu"]},{name:"Zabuza Momochi",title:"Demon of the Hidden Mist",maxHp:200,img:"🌊",color:"#06b6d4",minXp:25,reward:65,quote:"Those who abandon their comrades are worse than trash.",moves:["🌊 Water Dragon","⚔️ Silent Killing","🌫️ Hidden Mist"]},{name:"Itachi Uchiha",title:"Phantom of Akatsuki",maxHp:280,img:"🌑",color:"#3b82f6",minXp:50,reward:80,quote:"You lack hatred.",moves:["👁️ Sharingan","🔥 Amaterasu","🌀 Tsukuyomi"]},{name:"Pain (Nagato)",title:"Six Paths of Pain",maxHp:450,img:"⚡",color:"#dc2626",minXp:100,reward:130,quote:"Those who know true pain can know true peace.",moves:["💥 Shinra Tensei","🌪️ Chibaku Tensei","☠️ Outer Path"]},{name:"Madara Uchiha",title:"Ghost of the Uchiha Clan",maxHp:800,img:"🌀",color:"#f97316",minXp:160,reward:220,quote:"Wake up to reality! Nothing ever goes as planned.",moves:["🔥 Susanoo","🌑 Meteor Drop","👁️ Infinite Tsukuyomi"]},{name:"Kaguya Otsutsuki",title:"Final Boss · Rabbit Goddess",maxHp:1500,img:"👁️",color:"#ec4899",minXp:200,reward:999,quote:"I am all chakra. I am the beginning and the end.",moves:["🌸 Ash Killing Bones","🌀 Dimension Shift","☄️ Expansive Truth"]}];
 const JUTSUS=[{name:"Shadow Clone",dmg:15,chakraCost:5,color:"#f59e0b",icon:"👥",desc:"Kage Bunshin!"},{name:"Rasengan",dmg:30,chakraCost:10,color:"#60a5fa",icon:"🌀",desc:"Spiraling sphere!"},{name:"Fire Style",dmg:40,chakraCost:15,color:"#ef4444",icon:"🔥",desc:"Katon!"},{name:"Lightning Blade",dmg:55,chakraCost:20,color:"#a78bfa",icon:"⚡",desc:"1000 birds!"},{name:"Sage Mode",dmg:75,chakraCost:30,color:"#10b981",icon:"🐸",desc:"Nature energy!"},{name:"Kurama Mode",dmg:100,chakraCost:40,color:"#f97316",icon:"🦊",desc:"Nine-Tails!"}];
 const EXAM_SUBJECTS=[{id:"maths",name:"Mathematics",icon:"📐",color:"#3b82f6"},{id:"physics",name:"Physics",icon:"⚛️",color:"#8b5cf6"},{id:"chem",name:"Chemistry",icon:"🧪",color:"#10b981"},{id:"cs",name:"Computer Science",icon:"💻",color:"#f59e0b"},{id:"english",name:"English",icon:"📜",color:"#ef4444"},{id:"other",name:"Other",icon:"📚",color:"#9ca3af"}];
@@ -26,9 +24,7 @@ const COMBO_MSGS=["NICE! 🌀","COMBO ×2! 🔥","ON FIRE! ⚡","UNSTOPPABLE! �
 
 function todayKey(){const dt=new Date();return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;}
 function formatDate(k){const[y,mo,d]=k.split("-").map(Number);return new Date(y,mo-1,d,12).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"short"});}
-function getRank(xp){for(let i=RANKS.length-1;i>=0;i--)if(xp>=RANKS[i].min)return{...RANKS[i],index:i};return{...RANKS[0],index:0};}
 function pctColor(p){if(p===100)return"#10b981";if(p>=70)return"#3b82f6";if(p>=40)return"#f59e0b";return"#ef4444";}
-function loadS(k){try{const v=localStorage.getItem("nw_"+k);return v?JSON.parse(v):null;}catch{return null;}}
 function saveS(k,v){try{localStorage.setItem("nw_"+k,JSON.stringify(v));}catch{}}
 function useLiveTime(){const[now,setNow]=useState(new Date());useEffect(()=>{const id=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(id);},[]);return now;}
 let _id=0;function uid(){return++_id;}
@@ -178,35 +174,15 @@ function StatsPanel({stats,history}){
 
 export default function App(){
   const navigate =useNavigate();
-  const [user, setUser] = useState(null);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setUser(session?.user ?? null);
-  });
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user ?? null);
-  });
-}, []);
-
-async function signInWithGoogle() {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: 'https://ninja-way.vercel.app' }
-  });
-}
-
-async function signOut() {
-  await supabase.auth.signOut();
-}
+  const { user, signInWithGoogle, signOut } = useAuth();
   const now=useLiveTime();
   const[tab,setTab]=useState("missions");
   const[tasks,setTasks]=useState([]);
   const[currentDay,setCurrentDay]=useState(todayKey());
   const[chakra,setChakra]=useState(0);
-  const[totalXp,setTotalXp]=useState(0);
   const[history,setHistory]=useState({});
   const[stats,setStats]=useState({totalXp:0,totalTasksDone:0,perfectDays:0,maxStreak:0,currentStreak:0,villainsDefeated:0,examDone:0,maxRank:0,maxCombo:0});
+  const totalXp=stats.totalXp; // single source of truth — derived from stats
   const[combo,setCombo]=useState(0);
   const[comboTimer,setComboTimer]=useState(null);
   const[examLog,setExamLog]=useState([]);
@@ -223,26 +199,73 @@ async function signOut() {
   const[quote]=useState(NARUTO_QUOTES[Math.floor(Math.random()*NARUTO_QUOTES.length)]);
   const taskRefs=useRef({});
   const[loaded,setLoaded]=useState(false);
+  // Cloud-sync bookkeeping (StrictMode-safe): which user we've already pulled
+  // for, a flag to skip echoing a cloud-hydration back as a push, and the
+  // debounce timer for pushes.
+  const syncedUserRef=useRef(null);
+  const skipPushRef=useRef(false);
+  const pushTimerRef=useRef(null);
 
-  useEffect(()=>{
-    const s=loadS("stats")||{totalXp:0,totalTasksDone:0,perfectDays:0,maxStreak:0,currentStreak:0,villainsDefeated:0,examDone:0,maxRank:0,maxCombo:0};
-    const h=loadS("history")||{};
-    const vIdx=loadS("vIdx")??0;
-    const vHp=loadS("vHp");
-    const ck=loadS("chakra")??0;
-    const el=loadS("examlog")||[];
+  // Apply a progress blob to in-memory state (used by both local load + cloud pull).
+  function applyProgress(p){
+    if(!p)return;
+    const s=p.stats||{totalXp:0,totalTasksDone:0,perfectDays:0,maxStreak:0,currentStreak:0,villainsDefeated:0,examDone:0,maxRank:0,maxCombo:0};
+    const h=p.history||{};
     const today=todayKey();
-    const todayTasks=h[today]||DEFAULT_TASKS.map(t=>({...t,done:false}));
-    setStats(s);setTotalXp(s.totalXp);setHistory(h);
-    const safeIdx=Math.min(vIdx,VILLAINS.length-1);
-    setVillainIdx(safeIdx);setVillainHp(vHp!==null?vHp:VILLAINS[safeIdx].maxHp);
-    setChakra(ck);setExamLog(el);setTasks(todayTasks);setCurrentDay(today);setLoaded(true);
+    setStats(s);setHistory(h);
+    const safeIdx=Math.min(p.vIdx??0,VILLAINS.length-1);
+    setVillainIdx(safeIdx);setVillainHp(p.vHp!=null?p.vHp:VILLAINS[safeIdx].maxHp);
+    setChakra(p.chakra??0);setExamLog(p.examlog||[]);
+    setTasks(h[today]||DEFAULT_TASKS.map(t=>({...t,done:false})));
+    setCurrentDay(today);
+  }
+
+  // Mount: hydrate from the local (offline) cache.
+  useEffect(()=>{
+    applyProgress(readLocal());
+    setLoaded(true);
   },[]);
 
+  // Persist to the local cache on every change (works offline + signed out).
   useEffect(()=>{
     if(!loaded)return;
     saveS("stats",stats);saveS("history",history);saveS("vIdx",villainIdx);saveS("vHp",villainHp);saveS("chakra",chakra);saveS("examlog",examLog);
   },[stats,history,villainIdx,villainHp,chakra,examLog,loaded]);
+
+  // On sign-in: cloud wins if it has real data, else seed the cloud from this
+  // device. Guarded so React StrictMode's double-invoke can't double-run.
+  useEffect(()=>{
+    if(!loaded)return;
+    const uid=user?.id||null;
+    if(!uid){syncedUserRef.current=null;return;}   // signed out — nothing to pull
+    if(syncedUserRef.current===uid)return;          // already synced this user
+    let cancelled=false;
+    (async()=>{
+      const cloud=await fetchCloud(uid);
+      if(cancelled)return;
+      if(cloud&&!isEmptyProgress(cloud)){
+        skipPushRef.current=true;   // don't echo this hydration straight back
+        writeLocal(cloud);
+        applyProgress(cloud);
+      }else{
+        await pushCloud(uid,readLocal());   // seed a fresh/empty account
+      }
+      if(!cancelled)syncedUserRef.current=uid;
+    })();
+    return()=>{cancelled=true;};
+  },[user?.id,loaded]);
+
+  // While signed in, debounce-push in-memory progress to the cloud.
+  useEffect(()=>{
+    if(!loaded)return;
+    const uid=user?.id||null;
+    if(!uid)return;
+    if(syncedUserRef.current!==uid)return;   // wait until the initial pull/seed finished
+    if(skipPushRef.current){skipPushRef.current=false;return;}   // skip the hydration echo
+    if(pushTimerRef.current)clearTimeout(pushTimerRef.current);
+    pushTimerRef.current=setTimeout(()=>{pushCloud(uid,readLocal());},1500);
+    return()=>{if(pushTimerRef.current)clearTimeout(pushTimerRef.current);};
+  },[stats,history,villainIdx,villainHp,chakra,examLog,user?.id,loaded]);
 
   function addBurst(el,color,count=10,size=7){
     if(!el)return;
@@ -280,7 +303,7 @@ async function signOut() {
     setTasks(newTasks);
     setHistory(h=>({...h,[currentDay]:newTasks}));
     if(wasNotDone){
-      setChakra(c=>c+t.chakra);setTotalXp(x=>x+t.xp);
+      setChakra(c=>c+t.chakra);
       setStats(s=>{const nXp=s.totalXp+t.xp,rank=getRank(nXp);return{...s,totalXp:nXp,totalTasksDone:s.totalTasksDone+1,maxRank:Math.max(s.maxRank,rank.index)};});
       addBurst(el,"#f59e0b",12,8);addLabel(el,`+${t.xp} XP`,"#f59e0b",16);
       setTimeout(()=>addLabel(el,`+${t.chakra}💙`,"#60a5fa",13),300);
@@ -288,14 +311,14 @@ async function signOut() {
       const allDone=newTasks.every(t=>t.done);
       if(allDone){setTimeout(()=>{addFlash("rgba(16,185,129,.3)",.5,.7);showToast("🌟 PERFECT DAY! All missions complete!","#10b981");setStats(s=>{const ns=s.currentStreak+1;return{...s,perfectDays:s.perfectDays+1,currentStreak:ns,maxStreak:Math.max(s.maxStreak,ns)};});},400);}
     }else{
-      setChakra(c=>Math.max(0,c-t.chakra));setTotalXp(x=>Math.max(0,x-t.xp));
+      setChakra(c=>Math.max(0,c-t.chakra));
       setStats(s=>({...s,totalXp:Math.max(0,s.totalXp-t.xp),totalTasksDone:Math.max(0,s.totalTasksDone-1)}));
     }
   }
 
   function addExam(entry){
     setExamLog(l=>[entry,...l].slice(0,50));
-    setChakra(c=>c+entry.chakra);setTotalXp(x=>x+entry.xp);
+    setChakra(c=>c+entry.chakra);
     setStats(s=>({...s,totalXp:s.totalXp+entry.xp,examDone:s.examDone+1,maxRank:Math.max(s.maxRank,getRank(s.totalXp+entry.xp).index)}));
   }
   function addExamFx({xp,chakra:ck,el}){
@@ -315,7 +338,6 @@ async function signOut() {
     if(newHp<=0){
       setIsDefeated(true);addFlash("rgba(245,158,11,.5)",.6,.8);
       showToast(`🏆 ${villain.name} DEFEATED! +${villain.reward} Bonus XP!`,"#f59e0b");
-      setTotalXp(x=>x+villain.reward);
       setStats(s=>({...s,totalXp:s.totalXp+villain.reward,villainsDefeated:s.villainsDefeated+1}));
       setTimeout(()=>{const nIdx=Math.min(villainIdx+1,VILLAINS.length-1);setVillainIdx(nIdx);setVillainHp(VILLAINS[nIdx].maxHp);setIsDefeated(false);setLastMove("");},3500);
       return;
@@ -347,31 +369,32 @@ async function signOut() {
       <AnimatePresence>{toast&&<motion.div initial={{opacity:0,y:-40}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-40}} style={{position:"fixed",top:14,left:"50%",transform:"translateX(-50%)",zIndex:10000,background:"#0d0500",border:`1px solid ${toast.color}`,borderRadius:9,padding:"9px 18px",fontFamily:"'Cinzel',serif",fontWeight:700,fontSize:11,color:toast.color,boxShadow:`0 0 22px ${toast.color}55`,whiteSpace:"nowrap",maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</motion.div>}</AnimatePresence>
 
       <div style={{padding:"18px 14px 0",maxWidth:460,margin:"0 auto"}}>
+        {!user ? (
+          <motion.button onClick={()=>signInWithGoogle()}
+            whileHover={{scale:1.03}} whileTap={{scale:.97}}
+            style={{width:"100%",padding:"10px",marginBottom:14,borderRadius:10,
+              background:"linear-gradient(135deg,#f97316,#ef4444)",border:"none",
+              color:"#fff",fontFamily:"'Cinzel',serif",fontWeight:700,fontSize:12,
+              cursor:"pointer",boxShadow:"0 0 14px #f9731677"}}>
+            🔑 Sign in with Google to Save Progress
+          </motion.button>
+        ) : (
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            marginBottom:14,padding:"8px 12px",borderRadius:10,
+            background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,200,100,.07)"}}>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"#f59e0b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              👤 {user.email}
+            </span>
+            <motion.button onClick={()=>signOut()} whileTap={{scale:.95}}
+              style={{padding:"4px 10px",borderRadius:6,background:"transparent",
+                border:"1px solid #ef4444",color:"#ef4444",fontFamily:"'Cinzel',serif",
+                fontSize:9,cursor:"pointer",flexShrink:0,marginLeft:8}}>
+              Sign Out
+            </motion.button>
+          </div>
+        )}
         <div style={{textAlign:"center",marginBottom:14}}>
-          <motion.div animate={{opacity:[.7,1,.7]}} transition={{repeat:Infinity,duration:3}} style={{fontSize:8,letterSpacing:4,color:"#6b5a3e",marginBottom:5}}>{!user ? (
-  <motion.button onClick={signInWithGoogle}
-    whileHover={{scale:1.05}} whileTap={{scale:.95}}
-    style={{width:"100%",padding:"10px",marginBottom:12,borderRadius:10,
-      background:"linear-gradient(135deg,#f97316,#ef4444)",border:"none",
-      color:"#fff",fontFamily:"'Cinzel',serif",fontWeight:700,fontSize:12,
-      cursor:"pointer",boxShadow:"0 0 14px #f9731677"}}>
-    🔑 Sign in with Google to Save Progress
-  </motion.button>
-) : (
-  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-    marginBottom:12,padding:"8px 12px",borderRadius:10,
-    background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,200,100,.07)"}}>
-    <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"#f59e0b"}}>
-      👤 {user.email}
-    </span>
-    <motion.button onClick={signOut} whileTap={{scale:.95}}
-      style={{padding:"4px 10px",borderRadius:6,background:"transparent",
-        border:"1px solid #ef4444",color:"#ef4444",fontFamily:"'Cinzel',serif",
-        fontSize:9,cursor:"pointer"}}>
-      Sign Out
-    </motion.button>
-  </div>
-)}⬥ HIDDEN LEAF VILLAGE ⬥</motion.div>
+          <motion.div animate={{opacity:[.7,1,.7]}} transition={{repeat:Infinity,duration:3}} style={{fontSize:8,letterSpacing:4,color:"#6b5a3e",marginBottom:5}}>⬥ HIDDEN LEAF VILLAGE ⬥</motion.div>
           <div style={{fontFamily:"'Cinzel',serif",fontWeight:900,fontSize:20,background:"linear-gradient(135deg,#f59e0b,#f97316,#ef4444)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:2,lineHeight:1}}>NINJA WAY</div>
           <div style={{fontSize:8,color:"#4b5563",letterSpacing:3,marginTop:2}}>DAILY MISSION TRACKER</div>
         </div>

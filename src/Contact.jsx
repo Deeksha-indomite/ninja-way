@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Contact() {
+  const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
@@ -14,6 +16,7 @@ export default function Contact() {
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0a0a0f,#1a0a00,#0a0a0f)",fontFamily:"'Cinzel',serif",color:"#f5e6c8",padding:"40px 20px"}}>
       <div style={{maxWidth:600,margin:"0 auto",opacity:visible?1:0,transition:"all 0.8s ease"}}>
+        <button onClick={()=>navigate("/")} style={{background:"transparent",border:"1px solid rgba(224,123,32,0.3)",color:"#e07b20",padding:"8px 16px",borderRadius:8,cursor:"pointer",fontSize:12,letterSpacing:2,fontFamily:"'Cinzel',serif",marginBottom:24}}>← BACK TO APP</button>
         <div style={{textAlign:"center",marginBottom:48}}>
           <div style={{fontSize:13,letterSpacing:6,color:"#e07b20",marginBottom:16}}>🍃 SEND A MESSAGE</div>
           <h1 style={{fontSize:48,fontWeight:900,background:"linear-gradient(135deg,#ff6b00,#ffd700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0}}>CONTACT US</h1>

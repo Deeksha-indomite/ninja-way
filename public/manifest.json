@@ -1,21 +1,33 @@
 {
-  "name": "Ninja Way",
+  "id": "/",
+  "name": "Ninja Way — Daily Mission Tracker",
   "short_name": "Ninja Way",
-  "description": "Daily Mission Tracker - Naruto Style",
+  "description": "A gamified daily habit and study tracker with a Naruto-inspired theme. Earn XP, rank up, and defeat villains by completing real-life missions.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0d0500",
-  "theme_color": "#f59e0b",
+  "theme_color": "#0d0500",
+  "categories": ["productivity", "lifestyle", "education"],
   "icons": [
     {
-      "src": "icon-192.webp",
+      "src": "/pwa-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "icon-512.webp",
+      "src": "/pwa-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
